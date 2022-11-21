@@ -11,10 +11,12 @@ async function sendTransaction(argv: any, threadId: number) {
     for (let index = 0; index < argv.times; index++) {
         const response = await 
             account.sendTransaction({
+                type: 1,
                 to: namedAddress(argv.to, threadId),
                 value: ethers.utils.parseEther(argv.ethamount),
                 data: argv.data,
                 nonce: startNonce + index,
+                gasPrice: 1,
             })
         console.log(response)
         if (argv.delay > 0) {

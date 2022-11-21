@@ -11,7 +11,7 @@ services:
     container_name: 'blockscout'
     links:
       - postgres:database
-    command: 'sh -c "mix do ecto.create, ecto.migrate; node init/install.js postgres 5432; mix do phx.server"'
+    command: 'sh -c "./blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\"; node init/install.js postgres 5432; mix phx.server"'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     env_file:
@@ -20,7 +20,7 @@ services:
         ETHEREUM_JSONRPC_VARIANT: 'geth'
         ETHEREUM_JSONRPC_HTTP_URL: http://sequencer:8547/
         INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "true"
-        DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout?ssl=false
+        DATABASE_URL: postgresql://postgres:@postgres:5432/blockscout
         ECTO_USE_SSL: "false"
     ports:
       - "127.0.0.1:4000:4000"
@@ -44,16 +44,29 @@ services:
       - "127.0.0.1:6379:6379"
 
   geth:
-    image: ethereum/client-go:stable
+    image: klaytn:1.8.4
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
     ports:
       - "127.0.0.1:8545:8545"
       - "127.0.0.1:8546:8546"
       - "127.0.0.1:30303:30303"
     volumes:
       - "l1data:/root/.ethereum"
-      - "l1keystore:/keystore"
+      - "l1keystore:/root/.ethereum/keystore"
       - "config:/config"
-    command: --keystore /keystore --http --http.addr 0.0.0.0 --http.vhosts * --http.api personal,eth,net,web3 --http.corsdomain * --ws --ws.addr 0.0.0.0 --ws.api personal,eth,net,web3,debug,txpool --dev --dev.period 1 --password /root/.ethereum/passphrase --gcmode archive
+    command: 'sh -c "/root/.ethereum/bin/kscnd start; tail -f /root/.ethereum/logs/kscnd.out;"'
+  # geth:
+  #   image: ethereum/client-go:stable
+  #   ports:
+  #     - "127.0.0.1:8545:8545"
+  #     - "127.0.0.1:8546:8546"
+  #     - "127.0.0.1:30303:30303"
+  #   volumes:
+  #     - "l1data:/root/.ethereum"
+  #     - "l1keystore:/keystore"
+  #     - "config:/config"
+  #   command: --keystore /keystore --http --http.addr 0.0.0.0 --http.vhosts * --http.api personal,eth,net,web3 --http.corsdomain * --ws --ws.addr 0.0.0.0 --ws.api personal,eth,net,web3,debug,txpool --dev --dev.period 1 --password /root/.ethereum/passphrase --gcmode archive
 
   sequencer:
     pid: host # allow debugging
@@ -220,7 +233,7 @@ services:
       target: nitro-node-dev
     ports:
       - "127.0.0.1:9652:9652"
-    entrypoint: bin/relay
+    entrypoint: relay
     command: --node.feed.output.port 9652 --node.feed.input.url ws://sequencer:9652
 
   testnode-tokenbridge:

@@ -143,7 +143,7 @@ else
     NODES="$NODES staker-unsafe"
 fi
 if $blockscout; then
-    NODES="$NODES blockscout"
+    NODES="$NODES postgres blockscout"
 fi
 
 if $force_build; then
@@ -160,19 +160,44 @@ if $force_init; then
     fi
     docker volume prune -f --filter label=com.docker.compose.project=nitro
 
+  
     echo == Generating l1 keys
     docker-compose run --entrypoint sh geth -c "echo passphrase > /root/.ethereum/passphrase"
     docker-compose run --entrypoint sh geth -c "echo $devprivkey > /root/.ethereum/tmp-funnelkey"
-    docker-compose run geth account import --password /root/.ethereum/passphrase --keystore /keystore /root/.ethereum/tmp-funnelkey
+    docker-compose run --entrypoint kscn geth account import --password /root/.ethereum/passphrase --keystore /root/.ethereum/keystore /root/.ethereum/tmp-funnelkey
     docker-compose run --entrypoint sh geth -c "rm /root/.ethereum/tmp-funnelkey"
-    docker-compose run geth account new --password /root/.ethereum/passphrase --keystore /keystore
-    docker-compose run geth account new --password /root/.ethereum/passphrase --keystore /keystore
-    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /keystore"
+    docker-compose run --entrypoint kscn geth account new --password /root/.ethereum/passphrase --keystore /root/.ethereum/keystore
+    docker-compose run --entrypoint kscn geth account new --password /root/.ethereum/passphrase --keystore /root/.ethereum/keystore
+    docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /root/.ethereum/keystore"
     docker-compose run --entrypoint sh geth -c "chown -R 1000:1000 /config"
+    docker-compose run --entrypoint sh geth -c "cd root;
+        homi setup local --cn-num 1 --test-num 1 --servicechain --chainID 1337 --p2p-port 30303 -o homi-output;
+        sed -i -e 's/\"chainId\": 1000/\"chainId\": 1337/g' ./homi-output/scripts/genesis.json;
+        sed -i -e 's/\"alloc\": {/\"alloc\": {\n\"0x683642c22feDE752415D4793832Ab75EFdF6223c\": { \"balance\": \"0x8ac7230489e800000\" },/g' ./homi-output/scripts/genesis.json;
+        sed -i -e 's/\"unitPrice\": 0/\"unitPrice\": 0/g' ./homi-output/scripts/genesis.json;        
+        kscn --datadir .ethereum init ./homi-output/scripts/genesis.json;
+        cp ./homi-output/scripts/static-nodes.json ./.ethereum;
+        cp ./homi-output/keys/nodekey1 ./.ethereum/klay/nodekey;
+        sed -i -e 's/RPC_PORT=8551/RPC_PORT=8545/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        sed -i -e 's/WS_PORT=8552/WS_PORT=8546/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        sed -i -e 's/PORT=22323/PORT=30303/g' /klaytn-docker-pkg/conf/kscnd.conf;
+
+        sed -i -e 's/SCSIGNER_PASSWD_FILE=/SCSIGNER_PASSWD_FILE=\\/root\\/.ethereum\\/passphrase/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        sed -i -e 's/DATA_DIR=/DATA_DIR=\\/root\\/.ethereum/g' /klaytn-docker-pkg/conf/kscnd.conf;       
+        sed -i -e 's/RPC_API=\"klay,eth,net,web3,subbridge\"/RPC_API=\"klay,eth,net,web3,subbridge,personal\"/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        sed -i -e 's/WS_API=\"klay,eth,net,web3\"/WS_API=\"klay,eth,net,web3,personal,debug,txpool\"/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        sed -i -e 's/ADDITIONAL=\"\"/ADDITIONAL=\"--ipcpath \\/root\\/.ethereum\\/klay.ipc\"/g' /klaytn-docker-pkg/conf/kscnd.conf;
+        mkdir /root/.ethereum/conf;
+        mkdir /root/.ethereum/bin;
+        cp /klaytn-docker-pkg/conf/kscnd.conf /root/.ethereum/conf/kscnd.conf;
+        cp /klaytn-docker-pkg/bin/kscnd /root/.ethereum/bin/kscnd;
+        cp /klaytn-docker-pkg/bin/kscn /root/.ethereum/bin/kscn;
+        "
+    docker-compose up -d geth
 
     echo == Funding validator and sequencer
-    docker-compose run testnode-scripts send-l1 --ethamount 1000 --to validator
-    docker-compose run testnode-scripts send-l1 --ethamount 1000 --to sequencer
+    docker-compose run testnode-scripts send-l1 --ethamount 10 --to validator
+    docker-compose run testnode-scripts send-l1 --ethamount 10 --to sequencer
 
     echo == Deploying L2
     sequenceraddress=`docker-compose run testnode-scripts print-address --account sequencer | tail -n 1 | tr -d '\r\n'`
@@ -184,7 +209,7 @@ if $force_init; then
     echo == Initializing redis
     docker-compose run testnode-scripts redis-init --redundancy $redundantsequencers
 
-    docker-compose run testnode-scripts bridge-funds --ethamount 100000
+    docker-compose run testnode-scripts bridge-funds --ethamount 100
 
     if $tokenbridge; then
         echo == Deploying token bridge
