@@ -173,7 +173,7 @@ if $force_init; then
     docker-compose run --entrypoint sh geth -c "cd root;
         homi setup local --cn-num 1 --test-num 1 --servicechain --chainID 1337 --p2p-port 30303 -o homi-output;
         sed -i -e 's/\"chainId\": 1000/\"chainId\": 1337/g' ./homi-output/scripts/genesis.json;
-        sed -i -e 's/\"alloc\": {/\"alloc\": {\n\"0x683642c22feDE752415D4793832Ab75EFdF6223c\": { \"balance\": \"0x8ac7230489e800000\" },/g' ./homi-output/scripts/genesis.json;
+        sed -i -e 's/\"alloc\": {/\"alloc\": {\n\"0x683642c22feDE752415D4793832Ab75EFdF6223c\": { \"balance\": \"0x6400000000000000000000\" },/g' ./homi-output/scripts/genesis.json;
         sed -i -e 's/\"unitPrice\": 0/\"unitPrice\": 0/g' ./homi-output/scripts/genesis.json;        
         kscn --datadir .ethereum init ./homi-output/scripts/genesis.json;
         cp ./homi-output/scripts/static-nodes.json ./.ethereum;
