@@ -217,6 +217,10 @@ if $force_init; then
         docker-compose run --entrypoint sh testnode-tokenbridge -c "cat localNetwork.json"
         echo 
     fi
+
+    # The contract wallet address of the staker (validator) is not automatically initialized. Initialize manually.
+    # A timeout error occurred in the process of getting the tx result, but it should have been executed normally. Ignore it and launch the node.
+    docker-compose run staker-unsafe --conf.file /config/unsafe_staker_config.json --node.validator.only-create-wallet-contract
 fi
 
 if $run; then
