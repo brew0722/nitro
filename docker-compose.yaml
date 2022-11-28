@@ -7,11 +7,11 @@ services:
     build:
       context: blockscout
       dockerfile: docker/Dockerfile
-    restart: always
+    # restart: always
     container_name: 'blockscout'
     links:
       - postgres:database
-    command: 'sh -c "./blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\"; node init/install.js postgres 5432; mix phx.server"'
+    command: bash -c "bin/blockscout eval \"Elixir.Explorer.ReleaseTasks.create_and_migrate()\"; bin/blockscout start"
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     env_file:
@@ -27,7 +27,7 @@ services:
 
   postgres:
     image: postgres:13.6
-    restart: always
+    # restart: always
     container_name: 'postgres'
     environment:
         POSTGRES_PASSWORD: ''

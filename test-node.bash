@@ -143,7 +143,7 @@ else
     NODES="$NODES staker-unsafe"
 fi
 if $blockscout; then
-    NODES="$NODES postgres blockscout"
+    NODES="$NODES blockscout"
 fi
 
 if $force_build; then
